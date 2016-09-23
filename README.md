@@ -8,7 +8,7 @@ Requires WordPress 4.5+ or the [WP REST API plugin](https://github.com/WP-API/WP
 
 You need to include and instantiate the controller:
 
-```
+```php
 add_action( 'rest_api_init', function() {
     include 'class-rest-api.php';
     $api = new Mercator\REST_API;
@@ -33,7 +33,7 @@ You can additionally specify a blog ID by passing in a `GET` parameter:
 
 Mappings are very simple. The example JSON object for a mapping is as follows:
 
-```json
+```
 {
     "id": 1                       // integer
     "domain": "example.com",      // string
