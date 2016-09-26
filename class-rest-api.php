@@ -6,6 +6,7 @@ use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
+use WP_Error;
 
 class REST_API extends WP_REST_Controller {
 
@@ -72,7 +73,9 @@ class REST_API extends WP_REST_Controller {
 	 */
 	public function get_items( $request ) {
 		$site = $this->get_blog_id( $request );
-		return Mapping::get_by_site( $site );
+		return array_map( function ( $mapping ) use ( $request ) {
+			return $this->prepare_item_for_response( $mapping, $request );
+		}, Mapping::get_by_site( $site ) );
 	}
 
 	/**
@@ -109,7 +112,10 @@ class REST_API extends WP_REST_Controller {
 	 * @return WP_Error|WP_REST_Response
 	 */
 	public function get_item( $request ) {
-		return new WP_REST_Response( Mapping::get( $request->get_param( 'id' ) ) );
+		return $this->prepare_item_for_response(
+			Mapping::get( $request->get_param( 'id' ) ),
+			$request
+		);
 	}
 
 	/**
@@ -130,11 +136,11 @@ class REST_API extends WP_REST_Controller {
 	 */
 	public function create_item( $request ) {
 		$update = $this->prepare_item_for_database( $request );
-		return new WP_REST_Response( Mapping::create(
+		return $this->prepare_item_for_response( Mapping::create(
 			$this->get_blog_id( $request ),
 			$update->domain,
 			$update->active
-		) );
+		), $request );
 	}
 
 	/**
@@ -156,13 +162,13 @@ class REST_API extends WP_REST_Controller {
 	public function update_item( $request ) {
 		$mapping = Mapping::get( $request->get_param( 'id' ) );
 		$update  = $this->prepare_item_for_database( $request );
-		if ( null !== $update->domain ) {
+		if ( property_exists( $update, 'domain' ) ) {
 			$mapping->set_domain( $update->domain );
 		}
-		if ( null !== $update->active ) {
+		if ( property_exists( $update, 'active' ) ) {
 			$mapping->set_active( $update->active );
 		}
-		return new WP_REST_Response( $mapping );
+		return $this->prepare_item_for_response( $mapping, $request );
 	}
 
 	/**
@@ -194,8 +200,12 @@ class REST_API extends WP_REST_Controller {
 	protected function prepare_item_for_database( $request ) {
 
 		$update         = new \stdClass;
-		$update->domain = parse_url( $request->get_param( 'domain' ), PHP_URL_HOST );
-		$update->active = filter_var( $request->get_param( 'active' ), FILTER_VALIDATE_BOOLEAN );
+		if ( null !== $request->get_param( 'domain' ) ) {
+			$update->domain = parse_url( $request->get_param( 'domain' ), PHP_URL_HOST );
+		}
+		if ( null !== $request->get_param( 'active' ) ) {
+			$update->active = filter_var( $request->get_param( 'active' ), FILTER_VALIDATE_BOOLEAN );
+		}
 
 		return $update;
 	}
@@ -208,7 +218,7 @@ class REST_API extends WP_REST_Controller {
 	 * @return WP_REST_Response $response
 	 */
 	public function prepare_item_for_response( $item, $request ) {
-		return new WP_REST_Response( $this->mapping_to_data( $item ) );
+		return new WP_REST_Response( is_wp_error( $item ) ? $item : $this->mapping_to_data( $item ) );
 	}
 
 	/**
