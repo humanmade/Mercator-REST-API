@@ -26,7 +26,7 @@ The controller adds two API routes:
 You can additionally specify a blog ID by passing in a `GET` parameter:
 
 ```
-?blog_id=1
+/wp-json/mercator/v1/mappings?blog=1
 ```
 
 ### Data structure
