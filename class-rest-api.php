@@ -7,6 +7,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
 use WP_Error;
+use stdClass;
 
 class REST_API extends WP_REST_Controller {
 
@@ -72,10 +73,11 @@ class REST_API extends WP_REST_Controller {
 	 * @return WP_Error|WP_REST_Response
 	 */
 	public function get_items( $request ) {
-		$site = $this->get_blog_id( $request );
-		return array_map( function ( $mapping ) use ( $request ) {
+		$site  = $this->get_blog_id( $request );
+		$items = array_map( function ( $mapping ) use ( $request ) {
 			return $this->prepare_item_for_response( $mapping, $request );
 		}, Mapping::get_by_site( $site ) );
+		return new WP_REST_Response( $items );
 	}
 
 	/**
@@ -199,7 +201,7 @@ class REST_API extends WP_REST_Controller {
 	 */
 	protected function prepare_item_for_database( $request ) {
 
-		$update         = new \stdClass;
+		$update = new stdClass;
 		if ( null !== $request->get_param( 'domain' ) ) {
 			$update->domain = parse_url( $request->get_param( 'domain' ), PHP_URL_HOST );
 		}
@@ -213,12 +215,28 @@ class REST_API extends WP_REST_Controller {
 	/**
 	 * Prepare the item for the REST response.
 	 *
-	 * @param mixed           $item    WordPress representation of the item.
+	 * @param mixed|Mapping   $item    WordPress representation of the item.
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response $response
 	 */
 	public function prepare_item_for_response( $item, $request ) {
-		return new WP_REST_Response( is_wp_error( $item ) ? $item : $this->mapping_to_data( $item ) );
+
+		if ( is_wp_error( $item ) ) {
+			return new WP_REST_Response( $item );
+		}
+
+		$data = array(
+			'id'     => absint( $item->get_id() ),
+			'domain' => $item->get_domain(),
+			'active' => $item->is_active(),
+		);
+
+		// Return blog ID if sent
+		if ( null !== $request->get_param( 'blog' ) ) {
+			$data['blog'] = $request->get_param( 'blog' );
+		}
+
+		return new WP_REST_Response( $data );
 	}
 
 	/**
@@ -232,6 +250,11 @@ class REST_API extends WP_REST_Controller {
 			'$schema'    => 'http://json-schema.org/draft-04/schema#',
 			'title'      => 'mapping',
 			'type'       => 'object',
+			'required'   => array(
+				'id',
+				'domain',
+				'active',
+			),
 			/*
 			 * Base properties for every Alias.
 			 */
@@ -253,24 +276,16 @@ class REST_API extends WP_REST_Controller {
 					'type'        => 'boolean',
 					'context'     => array( 'view', 'edit' ),
 				),
+				'blog'   => array(
+					'description' => __( 'The blog ID this alias belongs to.' ),
+					'type'        => 'integer',
+					'context'     => array( 'view', 'edit' ),
+					'readonly'    => true,
+				),
 			),
 		);
 
 		return $schema;
-	}
-
-	/**
-	 * Convert a Mapping object to data we can return
-	 *
-	 * @param Mapping $mapping
-	 * @return array
-	 */
-	protected function mapping_to_data( $mapping ) {
-		return array(
-			'id'     => absint( $mapping->get_id() ),
-			'domain' => $mapping->get_domain(),
-			'active' => $mapping->is_active(),
-		);
 	}
 
 	/**
@@ -280,7 +295,7 @@ class REST_API extends WP_REST_Controller {
 	 * @return int
 	 */
 	protected function get_blog_id( $request ) {
-		return $request->get_param( 'blog_id' ) ?: get_current_blog_id();
+		return $request->get_param( 'blog' ) ?: get_current_blog_id();
 	}
 
 }
