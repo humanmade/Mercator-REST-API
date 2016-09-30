@@ -7,6 +7,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
 use WP_Error;
+use stdClass;
 
 class REST_API extends WP_REST_Controller {
 
@@ -200,7 +201,7 @@ class REST_API extends WP_REST_Controller {
 	 */
 	protected function prepare_item_for_database( $request ) {
 
-		$update = new \stdClass;
+		$update = new stdClass;
 		if ( null !== $request->get_param( 'domain' ) ) {
 			$update->domain = parse_url( $request->get_param( 'domain' ), PHP_URL_HOST );
 		}
