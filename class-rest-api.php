@@ -215,12 +215,28 @@ class REST_API extends WP_REST_Controller {
 	/**
 	 * Prepare the item for the REST response.
 	 *
-	 * @param mixed           $item    WordPress representation of the item.
+	 * @param mixed|Mapping   $item    WordPress representation of the item.
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response $response
 	 */
 	public function prepare_item_for_response( $item, $request ) {
-		return new WP_REST_Response( is_wp_error( $item ) ? $item : $this->mapping_to_data( $item, $request ) );
+
+		if ( is_wp_error( $item ) ) {
+			return new WP_REST_Response( $item );
+		}
+
+		$data = array(
+			'id'     => absint( $item->get_id() ),
+			'domain' => $item->get_domain(),
+			'active' => $item->is_active(),
+		);
+
+		// Return blog ID if sent
+		if ( null !== $request->get_param( 'blog' ) ) {
+			$data['blog'] = $request->get_param( 'blog' );
+		}
+
+		return new WP_REST_Response( $data );
 	}
 
 	/**
@@ -255,32 +271,17 @@ class REST_API extends WP_REST_Controller {
 					'type'        => 'boolean',
 					'context'     => array( 'view', 'edit' ),
 				),
+				'blog'   => array(
+					'description' => __( 'The blog ID this alias belongs to.' ),
+					'type'        => 'integer',
+					'context'     => array( 'view', 'edit' ),
+					'readonly'    => true,
+					'optional'    => true,
+				),
 			),
 		);
 
 		return $schema;
-	}
-
-	/**
-	 * Convert a Mapping object to data we can return
-	 *
-	 * @param Mapping         $mapping
-	 * @param WP_REST_Request $request
-	 * @return array
-	 */
-	protected function mapping_to_data( $mapping, $request ) {
-		$data = array(
-			'id'     => absint( $mapping->get_id() ),
-			'domain' => $mapping->get_domain(),
-			'active' => $mapping->is_active(),
-		);
-
-		// Return blog ID if sent
-		if ( null !== $request->get_param( 'blog' ) ) {
-			$data['blog'] = $request->get_param( 'blog' );
-		}
-
-		return $data;
 	}
 
 	/**
