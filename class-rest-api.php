@@ -250,6 +250,11 @@ class REST_API extends WP_REST_Controller {
 			'$schema'    => 'http://json-schema.org/draft-04/schema#',
 			'title'      => 'mapping',
 			'type'       => 'object',
+			'required'   => array(
+				'id',
+				'domain',
+				'active',
+			),
 			/*
 			 * Base properties for every Alias.
 			 */
@@ -276,7 +281,6 @@ class REST_API extends WP_REST_Controller {
 					'type'        => 'integer',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
-					'optional'    => true,
 				),
 			),
 		);
