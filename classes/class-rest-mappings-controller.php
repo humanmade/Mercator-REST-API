@@ -1,7 +1,8 @@
 <?php
 
-namespace Mercator;
+namespace Mercator\REST;
 
+use Mercator\Mapping;
 use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -9,13 +10,22 @@ use WP_REST_Server;
 use WP_Error;
 use stdClass;
 
-class REST_API extends WP_REST_Controller {
+class Mappings_Controller extends WP_REST_Controller {
+
+	public $version = 'v1';
+	public $namespace;
+	public $rest_base;
+
+	public function __construct() {
+		$this->namespace = "mercator/{$this->version}";
+		$this->rest_base = 'mappings';
+	}
 
 	/**
 	 * Register the routes for the objects of the controller.
 	 */
 	public function register_routes() {
-		register_rest_route( 'mercator/v1', 'mappings', array(
+		register_rest_route( $this->namespace, $this->rest_base, array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_items' ),
@@ -30,7 +40,7 @@ class REST_API extends WP_REST_Controller {
 
 			'schema' => array( $this, 'get_public_item_schema' ),
 		) );
-		register_rest_route( 'mercator/v1', 'mappings/(?P<id>[\\d]+)', array(
+		register_rest_route( $this->namespace, "{$this->rest_base}/(?P<id>[\\d]+)", array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_item' ),
