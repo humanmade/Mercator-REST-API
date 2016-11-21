@@ -117,7 +117,7 @@ class Primary_Domain_Controller extends WP_REST_Controller {
 	 */
 	public function prepare_item_for_response( $item, $request ) {
 
-		$blog = $this->get_blog_id( $request );
+		$blog = $this->parent_controller->get_blog_id( $request );
 		$item = get_site( $blog );
 
 		if ( is_wp_error( $item ) || is_null( $item ) ) {

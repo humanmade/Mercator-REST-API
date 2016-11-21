@@ -85,7 +85,7 @@ class Mappings_Controller extends WP_REST_Controller {
 	public function get_items( $request ) {
 		$site  = $this->get_blog_id( $request );
 		$items = array_map( function ( $mapping ) use ( $request ) {
-			return $this->prepare_item_for_response( $mapping, $request );
+			return $this->mapping_to_array( $mapping, $request );
 		}, Mapping::get_by_site( $site ) );
 		return new WP_REST_Response( $items );
 	}
@@ -235,16 +235,7 @@ class Mappings_Controller extends WP_REST_Controller {
 			return new WP_REST_Response( $item );
 		}
 
-		$data = array(
-			'id'     => absint( $item->get_id() ),
-			'domain' => $item->get_domain(),
-			'active' => $item->is_active(),
-		);
-
-		// Return blog ID if sent
-		if ( null !== $request->get_param( 'blog' ) ) {
-			$data['blog'] = $request->get_param( 'blog' );
-		}
+		$data = $this->mapping_to_array( $item, $request );
 
 		return new WP_REST_Response( $data );
 	}
@@ -304,8 +295,30 @@ class Mappings_Controller extends WP_REST_Controller {
 	 * @param WP_REST_Request $request
 	 * @return int
 	 */
-	protected function get_blog_id( $request ) {
+	public function get_blog_id( $request ) {
 		return $request->get_param( 'blog' ) ?: get_current_blog_id();
+	}
+
+	/**
+	 * Converts a mapping to an array of data
+	 *
+	 * @param Mapping $mapping
+	 * @param WP_REST_Request|null $request
+	 * @return array
+	 */
+	protected function mapping_to_array( $mapping, $request = null ) {
+		$data = array(
+			'id'     => absint( $mapping->get_id() ),
+			'domain' => $mapping->get_domain(),
+			'active' => $mapping->is_active(),
+		);
+
+		// Return blog ID if sent
+		if ( null !== $request->get_param( 'blog' ) ) {
+			$data['blog'] = $request->get_param( 'blog' );
+		}
+
+		return $data;
 	}
 
 }
