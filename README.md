@@ -6,30 +6,32 @@ Requires WordPress 4.5+ or the [WP REST API plugin](https://github.com/WP-API/WP
 
 ## Usage
 
-You need to include and instantiate the controller:
+You need to include and instantiate the controllers:
 
 ```php
-add_action( 'rest_api_init', function() {
-    include 'class-rest-api.php';
-    $api = new Mercator\REST_API;
-    $api->register_routes();
-} );
+require_once 'api.php';
 ```
 
-The controller adds two API routes:
+### Mappings
+
+The mappings controller adds two API routes:
 
 ```
 /wp-json/mercator/v1/mappings       // accepts GET, POST
 /wp-json/mercator/v1/mappings/:id   // accepts PUT, PATCH, DELETE
 ```
 
-You can additionally specify a blog ID by passing in a `GET` parameter:
+You can additionally specify a blog ID by sending in a parameter:
 
 ```
-/wp-json/mercator/v1/mappings?blog=1
+GET
+curl http://wordpress.dev/wp-json/mercator/v1/mappings?blog=1
+
+POST, PUT, PATCH, DELETE
+curl --data "blog=1" http://wordpress.dev/wp-json/mercator/v1/mappings
 ```
 
-### Data structure
+#### Data structure
 
 Mappings are very simple. The example JSON object for a mapping is as follows:
 
@@ -41,4 +43,21 @@ Mappings are very simple. The example JSON object for a mapping is as follows:
 }
 ```
 
-When creating a mapping using `POST` you only need to send the `domain` and `active` values.
+When creating a mapping using `POST` you should only send the `domain` and `active` values.
+
+### Primary domain
+
+The primary domain controller adds a single route for getting and setting the primary domain.
+
+```
+/wp-json/mercator/v1/primary     // accepts GET, POST
+```
+
+When `POST`ing to this route you must send a mapping ID:
+
+```
+curl --data "mapping=123" http://wordpress.dev/wp-json/mercator/v1/primary
+```
+
+The mapping for that ID will made into the site's primary domain provided the user has 
+permission and the old primary domain will be converted into a new mapping.
