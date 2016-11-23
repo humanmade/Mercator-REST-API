@@ -87,6 +87,7 @@ class Mappings_Controller extends WP_REST_Controller {
 		$items = array_map( function ( $mapping ) use ( $request ) {
 			return $this->mapping_to_array( $mapping, $request );
 		}, Mapping::get_by_site( $site ) );
+
 		return new WP_REST_Response( $items );
 	}
 
@@ -147,7 +148,37 @@ class Mappings_Controller extends WP_REST_Controller {
 	 * @return WP_Error|WP_REST_Response
 	 */
 	public function create_item( $request ) {
-		$update = $this->prepare_item_for_database( $request );
+		$update   = $this->prepare_item_for_database( $request );
+		$existing = Mapping::get_by_domain( $update->domain );
+
+		if ( is_wp_error( $existing ) ) {
+			return $existing;
+		}
+
+		// Error if exists already, mercator currently passes object back
+		if ( ! empty( $existing ) ) {
+			return new WP_Error(
+				'mercator.mapping.domain_exists',
+				__( 'Alias already exists', 'mercator' ),
+				array(
+					'status'    => 403,
+					'attribute' => 'domain',
+				)
+			);
+		}
+
+		// Error if it's another subdomain of the network
+		if ( preg_match( '/' . get_site( get_main_site_for_network() )->domain . '$/', $update->domain ) ) {
+			return new WP_Error(
+				'mercator.mapping.domain_is_network',
+				__( 'You can only have one network subdomain', 'mercator' ),
+				array(
+					'status'    => 403,
+					'attribute' => 'domain',
+				)
+			);
+		}
+
 		return $this->prepare_item_for_response( Mapping::create(
 			$this->get_blog_id( $request ),
 			$update->domain,
@@ -180,6 +211,7 @@ class Mappings_Controller extends WP_REST_Controller {
 		if ( property_exists( $update, 'active' ) ) {
 			$mapping->set_active( $update->active );
 		}
+
 		return $this->prepare_item_for_response( $mapping, $request );
 	}
 
@@ -302,7 +334,7 @@ class Mappings_Controller extends WP_REST_Controller {
 	/**
 	 * Converts a mapping to an array of data
 	 *
-	 * @param Mapping $mapping
+	 * @param Mapping              $mapping
 	 * @param WP_REST_Request|null $request
 	 * @return array
 	 */
