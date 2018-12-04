@@ -1,0 +1,21 @@
+{
+	"name": "humanmade/mercator-rest-api",
+	"description": "REST API endpoint for Mercator.",
+	"homepage": "https://github.com/humanmade/Mercator-REST-API",
+	"keywords": [
+		"wordpress"
+	],
+	"license": "GPL-2.0+",
+	"authors": [
+		{
+			"name":"Human Made Limited",
+			"email":"support@humanmade.co.uk",
+			"homepage":"https://humanmade.com/"
+		}
+	],
+	"type": "wordpress-muplugin",
+	"require": {
+		"composer/installers": "~1.0",
+		"humanmade/mercator": "~1.0 || ~2.0"
+	 }
+}
