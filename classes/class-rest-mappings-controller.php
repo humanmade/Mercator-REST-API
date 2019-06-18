@@ -1,7 +1,8 @@
 <?php
 
-namespace Mercator;
+namespace Mercator\REST;
 
+use Mercator\Mapping;
 use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -9,13 +10,22 @@ use WP_REST_Server;
 use WP_Error;
 use stdClass;
 
-class REST_API extends WP_REST_Controller {
+class Mappings_Controller extends WP_REST_Controller {
+
+	public $version = 'v1';
+	public $namespace;
+	public $rest_base;
+
+	public function __construct() {
+		$this->namespace = "mercator/{$this->version}";
+		$this->rest_base = 'mappings';
+	}
 
 	/**
 	 * Register the routes for the objects of the controller.
 	 */
 	public function register_routes() {
-		register_rest_route( 'mercator/v1', 'mappings', array(
+		register_rest_route( $this->namespace, $this->rest_base, array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_items' ),
@@ -30,7 +40,7 @@ class REST_API extends WP_REST_Controller {
 
 			'schema' => array( $this, 'get_public_item_schema' ),
 		) );
-		register_rest_route( 'mercator/v1', 'mappings/(?P<id>[\\d]+)', array(
+		register_rest_route( $this->namespace, "{$this->rest_base}/(?P<id>[\\d]+)", array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_item' ),
@@ -75,8 +85,9 @@ class REST_API extends WP_REST_Controller {
 	public function get_items( $request ) {
 		$site  = $this->get_blog_id( $request );
 		$items = array_map( function ( $mapping ) use ( $request ) {
-			return $this->prepare_item_for_response( $mapping, $request );
+			return $this->mapping_to_array( $mapping, $request );
 		}, Mapping::get_by_site( $site ) );
+
 		return new WP_REST_Response( $items );
 	}
 
@@ -137,7 +148,37 @@ class REST_API extends WP_REST_Controller {
 	 * @return WP_Error|WP_REST_Response
 	 */
 	public function create_item( $request ) {
-		$update = $this->prepare_item_for_database( $request );
+		$update   = $this->prepare_item_for_database( $request );
+		$existing = Mapping::get_by_domain( $update->domain );
+
+		if ( is_wp_error( $existing ) ) {
+			return $existing;
+		}
+
+		// Error if exists already, mercator currently passes object back
+		if ( ! empty( $existing ) ) {
+			return new WP_Error(
+				'mercator.mapping.domain_exists',
+				__( 'Alias already exists', 'mercator' ),
+				array(
+					'status'    => 403,
+					'attribute' => 'domain',
+				)
+			);
+		}
+
+		// Error if it's another subdomain of the network
+		if ( preg_match( '/' . get_site( get_main_site_for_network() )->domain . '$/', $update->domain ) ) {
+			return new WP_Error(
+				'mercator.mapping.domain_is_network',
+				__( 'You can only have one network subdomain', 'mercator' ),
+				array(
+					'status'    => 403,
+					'attribute' => 'domain',
+				)
+			);
+		}
+
 		return $this->prepare_item_for_response( Mapping::create(
 			$this->get_blog_id( $request ),
 			$update->domain,
@@ -170,6 +211,7 @@ class REST_API extends WP_REST_Controller {
 		if ( property_exists( $update, 'active' ) ) {
 			$mapping->set_active( $update->active );
 		}
+
 		return $this->prepare_item_for_response( $mapping, $request );
 	}
 
@@ -225,16 +267,7 @@ class REST_API extends WP_REST_Controller {
 			return new WP_REST_Response( $item );
 		}
 
-		$data = array(
-			'id'     => absint( $item->get_id() ),
-			'domain' => $item->get_domain(),
-			'active' => $item->is_active(),
-		);
-
-		// Return blog ID if sent
-		if ( null !== $request->get_param( 'blog' ) ) {
-			$data['blog'] = $request->get_param( 'blog' );
-		}
+		$data = $this->mapping_to_array( $item, $request );
 
 		return new WP_REST_Response( $data );
 	}
@@ -294,8 +327,30 @@ class REST_API extends WP_REST_Controller {
 	 * @param WP_REST_Request $request
 	 * @return int
 	 */
-	protected function get_blog_id( $request ) {
+	public function get_blog_id( $request ) {
 		return $request->get_param( 'blog' ) ?: get_current_blog_id();
+	}
+
+	/**
+	 * Converts a mapping to an array of data
+	 *
+	 * @param Mapping              $mapping
+	 * @param WP_REST_Request|null $request
+	 * @return array
+	 */
+	protected function mapping_to_array( $mapping, $request = null ) {
+		$data = array(
+			'id'     => absint( $mapping->get_id() ),
+			'domain' => $mapping->get_domain(),
+			'active' => $mapping->is_active(),
+		);
+
+		// Return blog ID if sent
+		if ( null !== $request->get_param( 'blog' ) ) {
+			$data['blog'] = $request->get_param( 'blog' );
+		}
+
+		return $data;
 	}
 
 }
